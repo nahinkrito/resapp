@@ -1,3 +1,5 @@
-Flask
-requests
+fastapi
+uvicorn
+httpx
+jinja2
 gunicorn
