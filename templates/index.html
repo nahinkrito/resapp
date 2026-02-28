@@ -1,44 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Result Search App</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        input, button { padding: 8px; margin: 5px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        .match { background-color: #a4fca4; }
-    </style>
+<title>Async Result Scanner</title>
+<style>
+body { font-family: Arial; padding:20px }
+input { margin:5px; padding:6px }
+button { margin:5px; padding:8px }
+.progress { width:100%; background:#ddd; height:25px }
+.bar { height:100%; width:0%; background:green }
+</style>
 </head>
 <body>
 
-<h2>College Result Search</h2>
+<h2>Result Scanner</h2>
 
-<form method="POST">
-    <input name="prefixes" placeholder="Prefixes (comma separated)" required>
-    <input name="start" type="number" placeholder="Start Number" required>
-    <input name="end" type="number" placeholder="End Number" required>
-    <input name="target_name" placeholder="Name to Search" required>
-    <input name="delay" type="number" step="0.5" placeholder="Delay (seconds)" value="1" required>
-    <button type="submit">Search</button>
-</form>
+<div id="prefix-container">
+    <input class="prefix" placeholder="Prefix">
+</div>
+<button onclick="addPrefix()">+</button>
 
-{% if results %}
-<table>
-    <tr>
-        <th>Reg No</th>
-        <th>Name</th>
-        <th>Status</th>
-    </tr>
-    {% for r in results %}
-    <tr class="{{ 'match' if r.status == 'MATCH' else '' }}">
-        <td>{{ r.reg_no }}</td>
-        <td>{{ r.name }}</td>
-        <td>{{ r.status }}</td>
-    </tr>
-    {% endfor %}
-</table>
-{% endif %}
+<br>
+<input id="start" placeholder="Start">
+<input id="end" placeholder="End">
+<input id="delay" placeholder="Delay (seconds)" value="0.5">
+<input id="target" placeholder="Target Name">
+
+<br><br>
+
+<button onclick="start()">Start</button>
+<button onclick="pause()">Pause</button>
+<button onclick="resume()">Resume</button>
+<button onclick="stop()">Stop</button>
+
+<h3>Progress</h3>
+<div class="progress">
+    <div class="bar" id="bar"></div>
+</div>
+
+<p>Last Checked: <span id="current"></span></p>
+<p>Checked: <span id="checked"></span></p>
+
+<h3>Matches</h3>
+<ul id="matches"></ul>
+
+<script>
+function addPrefix(){
+    let input = document.createElement("input");
+    input.className="prefix";
+    input.placeholder="Prefix";
+    document.getElementById("prefix-container").appendChild(input);
+}
+
+async function start(){
+    let prefixes = Array.from(document.getElementsByClassName("prefix")).map(i=>i.value);
+    await fetch("/start", {
+        method:"POST",
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            prefixes: prefixes,
+            start: document.getElementById("start").value,
+            end: document.getElementById("end").value,
+            delay: document.getElementById("delay").value,
+            target_name: document.getElementById("target").value
+        })
+    });
+}
+
+async function pause(){ await fetch("/pause",{method:"POST"}) }
+async function resume(){ await fetch("/resume",{method:"POST"}) }
+async function stop(){ await fetch("/stop",{method:"POST"}) }
+
+async function update(){
+    let r = await fetch("/progress");
+    let data = await r.json();
+
+    document.getElementById("current").innerText = data.current;
+    document.getElementById("checked").innerText = data.checked;
+
+    let percent = (data.checked/data.total)*100 || 0;
+    document.getElementById("bar").style.width = percent+"%";
+
+    let matches = document.getElementById("matches");
+    matches.innerHTML="";
+    data.matches.forEach(m=>{
+        let li=document.createElement("li");
+        li.innerText=m.reg_no+" - "+m.name;
+        matches.appendChild(li);
+    });
+}
+
+setInterval(update,1000);
+</script>
 
 </body>
 </html>
